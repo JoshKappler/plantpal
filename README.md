@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🌿 PlantPal
 
-## Getting Started
+A calm, personal plant-care tracker. Photograph a plant, get a starting watering
+schedule, and PlantPal nudges you (once a day, until you confirm) when each plant
+is due — adapting the interval to how you actually care for it. Tracks fertilizing
+on a parallel schedule, nudges outdoor plants by local weather, and shows a calendar
+of each plant's history.
 
-First, run the development server:
+Built as an installable **PWA** — no App Store, no Xcode, no Mac. Open the link on a
+phone, "Add to Home Screen," and it behaves like a native app.
+
+## Status
+
+**Plan 1 (this repo) is complete: a runnable, local-data prototype.** Everything works
+on this machine with no external accounts — plants and history are saved on-device
+(IndexedDB). Photo identification, reminders, weather, and login are wired in **Plan 2**
+once API keys exist (see below). The data layer sits behind a `PlantRepo` interface, so
+Plan 2 swaps in Postgres without touching the UI.
+
+## Run it (Windows / anywhere)
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev      # http://localhost:3000
+npm test         # 40 unit tests (care engines, library, repo)
+npm run build    # production build + typecheck
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+It ships with four demo plants on first load (one overdue, one due today, one happy,
+one outdoor) so it isn't empty. Add your own from the **+** button; remove a plant from
+its detail screen to clear the demo set.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## What's here (Plan 1)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Tested logic core** (`lib/`, pure + Vitest): adaptive interval (damped EMA),
+  due-date/status, bounded weather shift, daily reminder selection, curated
+  43-plant library + lookup, create/care operations.
+- **PWA UI** (`app/`, `components/`): home grid sorted by urgency, add-plant flow
+  (species autocomplete, photo, **user-set last-watered date**), plant detail with
+  the **confirm + "adjust the schedule?"** flow, month calendar, settings, offline
+  app shell, installable manifest + icons.
+- Design: "Glasshouse" direction — dewy greenhouse palette, Fraunces display /
+  Hanken Grotesk body, specimen-label plant cards with a dewdrop status meter.
 
-## Learn More
+See `docs/superpowers/specs/` and `docs/superpowers/plans/` for the full spec and plan.
 
-To learn more about Next.js, take a look at the following resources:
+## Plan 2 — production wiring (needs your accounts/keys)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+These can't be automated; they require accounts and a deploy. Add as env vars:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Key | For |
+| --- | --- |
+| `DATABASE_URL` | Neon Postgres (Vercel Marketplace) — replaces the on-device store |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob — plant photo storage |
+| `PLANT_ID_API_KEY` | Plant.id — photo → species identification |
+| `PERENUAL_API_KEY` | Perenual — library fallback for uncommon species |
+| `RESEND_API_KEY` + verified sender | magic-link login email |
+| `AUTH_SECRET` | Auth.js session secret |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web Push (generated, not signed up for) |
 
-## Deploy on Vercel
+Open-Meteo (weather) needs **no key**. Also required for Plan 2: a Vercel project to
+deploy to, and a real iPhone to verify push notifications end-to-end.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Tech
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · date-fns ·
+idb-keyval · Vitest. Deploys to Vercel.

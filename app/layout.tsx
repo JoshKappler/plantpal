@@ -3,6 +3,7 @@ import { Fraunces, Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
 import { AppProvider } from "./providers";
 import { BottomNav } from "@/components/BottomNav";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 
 const display = Fraunces({
   subsets: ["latin"],
@@ -44,6 +45,7 @@ export default function RootLayout({
             <main className="flex-1 px-5 pb-28 pt-7">{children}</main>
             <BottomNav />
           </div>
+          <ServiceWorkerRegister />
         </AppProvider>
       </body>
     </html>
