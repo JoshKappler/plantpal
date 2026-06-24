@@ -1,65 +1,87 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import Link from "next/link";
+import { useMemo, useState } from "react";
+import { useApp } from "./providers";
+import { PlantCard } from "@/components/PlantCard";
+import { LeafGlyph } from "@/components/icons";
+import { dueStatus } from "@/lib/dueDate";
+import { TONE_RANK } from "@/lib/labels";
+
+export default function HomePage() {
+  const { ready, plants } = useApp();
+  const [nowISO] = useState(() => new Date().toISOString());
+
+  const sorted = useMemo(
+    () =>
+      [...plants]
+        .filter((p) => !p.archived)
+        .map((p) => ({ p, s: dueStatus(p.waterNextDueAt, nowISO) }))
+        .sort(
+          (a, b) =>
+            TONE_RANK[a.s.state] - TONE_RANK[b.s.state] || a.s.days - b.s.days,
+        ),
+    [plants, nowISO],
+  );
+
+  const needWater = sorted.filter((x) => x.s.state !== "ok").length;
+
+  if (!ready) {
+    return (
+      <p className="mt-16 text-center text-moss/50">Waking up the greenhouse…</p>
+    );
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <>
+      <header className="mb-6">
+        <p className="font-sans text-xs font-semibold uppercase tracking-[0.2em] text-leaf">
+          Your jungle
+        </p>
+        <h1 className="mt-1 font-display text-3xl leading-tight">
+          {needWater > 0 ? (
+            <>
+              {needWater} {needWater === 1 ? "plant needs" : "plants need"} a{" "}
+              <span className="italic text-leaf">drink</span>
+            </>
+          ) : (
+            <>
+              Everyone&apos;s <span className="italic text-leaf">happy</span> today
+            </>
+          )}
+        </h1>
+        <p className="mt-1 text-sm text-moss/55">
+          {plants.length} {plants.length === 1 ? "plant" : "plants"} in your care
+        </p>
+      </header>
+
+      {sorted.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <div className="grid grid-cols-2 gap-4">
+          {sorted.map(({ p }, i) => (
+            <PlantCard key={p.id} plant={p} nowISO={nowISO} index={i} />
+          ))}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      )}
+    </>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="rise mt-10 flex flex-col items-center rounded-3xl bg-card px-6 py-12 text-center ring-1 ring-moss/5">
+      <LeafGlyph className="h-14 w-14 text-leaf-soft" />
+      <h2 className="mt-4 font-display text-xl italic">No plants yet</h2>
+      <p className="mt-1 max-w-xs text-sm text-moss/55">
+        Add your first leafy friend and PlantPal will keep its watering on track.
+      </p>
+      <Link
+        href="/add"
+        className="mt-5 rounded-full bg-leaf px-5 py-2.5 text-sm font-semibold text-dew transition active:scale-95"
+      >
+        Add a plant
+      </Link>
     </div>
   );
 }
