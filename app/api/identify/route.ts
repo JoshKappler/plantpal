@@ -83,6 +83,8 @@ export async function POST(req: Request) {
   }
 
   if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    console.error(`identify: Anthropic API ${res.status} — ${detail.slice(0, 500)}`);
     return Response.json({ error: "Identification failed." }, { status: 502 });
   }
 
