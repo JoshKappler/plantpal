@@ -76,6 +76,15 @@ export function ChevronLeft({ className }: IconProps) {
   );
 }
 
+export function ScanIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 8V6.5A2.5 2.5 0 0 1 6.5 4H8M16 4h1.5A2.5 2.5 0 0 1 20 6.5V8M20 16v1.5a2.5 2.5 0 0 1-2.5 2.5H16M8 20H6.5A2.5 2.5 0 0 1 4 17.5V16" />
+      <circle cx="12" cy="12" r="3.2" />
+    </svg>
+  );
+}
+
 /** Soft botanical placeholder for a plant with no photo. */
 export function PlantGlyph({ className }: IconProps) {
   return (

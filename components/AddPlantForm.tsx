@@ -9,7 +9,7 @@ import type { LibraryEntry } from "@/lib/library";
 import type { LightLevel, PlantLocation } from "@/lib/types";
 import { SpeciesPicker } from "./SpeciesPicker";
 import { ChipGroup, Field, inputClass, Segmented, Stepper, Toggle } from "./forms";
-import { PlantGlyph } from "./icons";
+import { ScanIcon } from "./icons";
 
 const LIGHT_OPTS = [
   { value: "LOW", label: "Low" },
@@ -80,6 +80,9 @@ export function AddPlantForm() {
   const [lastWatered, setLastWatered] = useState(today);
   const [photo, setPhoto] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
+  // Scan-first flow: the details form stays hidden until a species is chosen
+  // (via an identified suggestion) or the user opts to enter it manually.
+  const [started, setStarted] = useState(false);
 
   function pick(e: LibraryEntry) {
     setSpecies(e.commonName);
@@ -119,6 +122,7 @@ export function AddPlantForm() {
     }
     setSuggestions([]);
     setIdNote(null);
+    setStarted(true);
   }
 
   async function identify(image: string) {
@@ -187,26 +191,32 @@ export function AddPlantForm() {
 
   return (
     <form onSubmit={submit} className="space-y-5 pb-4">
-      <label className="flex cursor-pointer items-center gap-4 rounded-3xl bg-card p-3 ring-1 ring-moss/10">
-        <span className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl bg-mist text-leaf-soft">
-          {photo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={photo} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <PlantGlyph className="h-10 w-12" />
-          )}
-        </span>
-        <span className="text-sm font-semibold text-leaf">
-          {photo ? "Change photo" : "Add a photo"}
-          <span className="mt-0.5 block text-xs font-normal text-moss/45">
-            Optional — helps you spot it at a glance
+      {/* Scan is the hero: tap to capture, then we auto-identify the species. */}
+      {photo ? (
+        <label className="relative block cursor-pointer overflow-hidden rounded-3xl ring-1 ring-moss/10">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={photo} alt="" className="aspect-[4/3] w-full object-cover" />
+          <span className="absolute bottom-3 right-3 rounded-full bg-moss/85 px-3.5 py-1.5 text-xs font-semibold text-dew backdrop-blur">
+            Retake
           </span>
-        </span>
-        <input type="file" accept="image/*" capture="environment" onChange={onPhoto} className="hidden" />
-      </label>
+          <input type="file" accept="image/*" capture="environment" onChange={onPhoto} className="hidden" />
+        </label>
+      ) : (
+        <label className="flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-3 rounded-3xl bg-card px-6 text-center ring-1 ring-moss/10 transition active:scale-[0.99]">
+          <span className="grid h-16 w-16 place-items-center rounded-full bg-mist text-leaf">
+            <ScanIcon className="h-8 w-8" />
+          </span>
+          <span className="text-base font-semibold text-leaf">Scan a plant</span>
+          <span className="-mt-1 max-w-[16rem] text-xs text-moss/55">
+            Point your camera at it — PlantPal identifies the species and sets up a
+            watering schedule for you.
+          </span>
+          <input type="file" accept="image/*" capture="environment" onChange={onPhoto} className="hidden" />
+        </label>
+      )}
 
       {(identifying || suggestions.length > 0 || idNote) && (
-        <div className="-mt-2 rounded-2xl bg-mist/60 p-3 text-sm ring-1 ring-moss/10">
+        <div className="rounded-2xl bg-mist/60 p-3 text-sm ring-1 ring-moss/10">
           {identifying ? (
             <span className="text-moss/60">Identifying your plant…</span>
           ) : suggestions.length > 0 ? (
@@ -234,68 +244,84 @@ export function AddPlantForm() {
         </div>
       )}
 
-      <Field label="Species" hint="Snap a photo above to identify it, or pick from the list to auto-fill a schedule.">
-        <SpeciesPicker value={species} onChange={onSpeciesText} onPick={pick} />
-      </Field>
+      {/* Escape hatch + post-scan fallback: skip identification and type it in. */}
+      {!started && !identifying && (
+        <button
+          type="button"
+          onClick={() => setStarted(true)}
+          className="w-full rounded-full bg-card py-3 text-sm font-semibold text-moss/70 ring-1 ring-moss/10 transition active:scale-[0.98]"
+        >
+          {suggestions.length > 0 || idNote ? "None of these — enter it manually" : "Enter details manually"}
+        </button>
+      )}
 
-      <Field label="Nickname" hint="What you call it. Leave blank to use the species.">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Gerald"
-          className={inputClass}
-        />
-      </Field>
+      {/* Details only appear once a species is identified or manual entry is chosen. */}
+      {started && (
+        <>
+          <Field label="Species" hint="Identified from your photo — or pick from the list to auto-fill a schedule.">
+            <SpeciesPicker value={species} onChange={onSpeciesText} onPick={pick} />
+          </Field>
 
-      <Field label="Where does it live?">
-        <Segmented options={LOCATION_OPTS} value={location} onChange={setLocation} />
-      </Field>
+          <Field label="Nickname" hint="What you call it. Leave blank to use the species.">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Gerald"
+              className={inputClass}
+            />
+          </Field>
 
-      <Field label="Room">
-        <input
-          value={room}
-          onChange={(e) => setRoom(e.target.value)}
-          placeholder="e.g. Living room"
-          className={inputClass}
-        />
-      </Field>
+          <Field label="Where does it live?">
+            <Segmented options={LOCATION_OPTS} value={location} onChange={setLocation} />
+          </Field>
 
-      <Field label="Light">
-        <ChipGroup options={LIGHT_OPTS} value={light} onChange={setLight} />
-      </Field>
+          <Field label="Room">
+            <input
+              value={room}
+              onChange={(e) => setRoom(e.target.value)}
+              placeholder="e.g. Living room"
+              className={inputClass}
+            />
+          </Field>
 
-      <Field
-        label="Watering"
-        hint={picked ? `Suggested for ${picked.commonName} — adjust if you like.` : undefined}
-      >
-        <Stepper value={waterInterval} onChange={setWaterInterval} />
-      </Field>
+          <Field label="Light">
+            <ChipGroup options={LIGHT_OPTS} value={light} onChange={setLight} />
+          </Field>
 
-      <Field
-        label="Last watered"
-        hint="So the schedule starts from reality, not today."
-      >
-        <input
-          type="date"
-          value={lastWatered}
-          max={today}
-          onChange={(e) => setLastWatered(e.target.value)}
-          className={inputClass}
-        />
-      </Field>
+          <Field
+            label="Watering"
+            hint={picked ? `Suggested for ${picked.commonName} — adjust if you like.` : undefined}
+          >
+            <Stepper value={waterInterval} onChange={setWaterInterval} />
+          </Field>
 
-      <div className="space-y-3">
-        <Toggle checked={fertEnabled} onChange={setFertEnabled} label="Track fertilizing too" />
-        {fertEnabled && <Stepper value={fertInterval} onChange={setFertInterval} max={365} />}
-      </div>
+          <Field
+            label="Last watered"
+            hint="So the schedule starts from reality, not today."
+          >
+            <input
+              type="date"
+              value={lastWatered}
+              max={today}
+              onChange={(e) => setLastWatered(e.target.value)}
+              className={inputClass}
+            />
+          </Field>
 
-      <button
-        type="submit"
-        disabled={!species.trim() || saving}
-        className="w-full rounded-full bg-leaf py-3.5 text-base font-semibold text-dew transition active:scale-[0.98] disabled:opacity-40"
-      >
-        {saving ? "Planting…" : "Add to my jungle"}
-      </button>
+          <div className="space-y-3">
+            <Toggle checked={fertEnabled} onChange={setFertEnabled} label="Track fertilizing too" />
+            {fertEnabled && <Stepper value={fertInterval} onChange={setFertInterval} max={365} />}
+          </div>
+
+          <button
+            type="submit"
+            disabled={!species.trim() || saving}
+            className="w-full rounded-full bg-leaf py-3.5 text-base font-semibold text-dew transition active:scale-[0.98] disabled:opacity-40"
+          >
+            {saving ? "Planting…" : "Add to my jungle"}
+          </button>
+        </>
+      )}
     </form>
   );
 }
