@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces, Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
 import { AppProvider } from "./providers";
-import { BottomNav } from "@/components/BottomNav";
+import { AppShell } from "@/components/AppShell";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 
 const display = Fraunces({
@@ -41,10 +41,7 @@ export default function RootLayout({
     >
       <body className="min-h-full">
         <AppProvider>
-          <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col">
-            <main className="flex-1 px-5 pb-28 pt-7">{children}</main>
-            <BottomNav />
-          </div>
+          <AppShell>{children}</AppShell>
           <ServiceWorkerRegister />
         </AppProvider>
       </body>

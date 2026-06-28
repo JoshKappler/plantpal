@@ -1,13 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChipGroup, Field, inputClass, Segmented } from "@/components/forms";
-import {
-  DEFAULT_SETTINGS,
-  loadSettings,
-  saveSettings,
-  type Settings,
-} from "@/lib/settingsStore";
+import { Field, inputClass, Segmented } from "@/components/forms";
+import { loadSettings, saveSettings } from "@/lib/settingsApi";
+import { DEFAULT_SETTINGS, type Settings } from "@/lib/settingsStore";
+import { useApp } from "../providers";
 
 const UNIT_OPTS = [
   { value: "IMPERIAL", label: "°F / in" },
@@ -21,6 +18,7 @@ const HOURS = Array.from({ length: 24 }, (_, h) => {
 });
 
 export default function SettingsPage() {
+  const { auth, signOut } = useApp();
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [loaded, setLoaded] = useState(false);
   const [savedAt, setSavedAt] = useState(false);
@@ -100,11 +98,25 @@ export default function SettingsPage() {
         </Field>
       </div>
 
-      <p className="mt-8 rounded-2xl bg-mist/60 p-4 text-xs leading-relaxed text-moss/55">
-        Reminders and weather adjustments turn on once PlantPal is connected to its
-        server (added to your Home Screen with notifications allowed). Until then,
-        your plants and history are saved right on this device.
-      </p>
+      <div className="mt-8 border-t border-moss/10 pt-6">
+        <div className="mb-1.5 text-sm font-semibold text-moss/80">Account</div>
+        <div className="flex items-center justify-between rounded-2xl bg-card px-4 py-3 ring-1 ring-moss/10">
+          <span className="truncate text-sm text-moss/70">
+            {auth.email ?? "Signed in"}
+          </span>
+          <button
+            type="button"
+            onClick={() => void signOut()}
+            className="shrink-0 rounded-full bg-mist px-4 py-2 text-sm font-semibold text-moss/70 transition active:scale-95"
+          >
+            Sign out
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-moss/45">
+          Your plants and history are saved to your account, so they&apos;re safe
+          across devices and reinstalls.
+        </p>
+      </div>
     </>
   );
 }

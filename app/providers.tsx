@@ -5,15 +5,14 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
-import { makeLocalRepo } from "@/lib/repo/localRepo";
+import { makeApiRepo, Unauthorized } from "@/lib/repo/apiRepo";
+import { bootstrapAccount } from "@/lib/repo/bootstrap";
 import { applyCare, createPlant } from "@/lib/plantOps";
 import type { ApplyCareInput, CreatePlantInput } from "@/lib/plantOps";
-import { demoSeed } from "@/lib/demoSeed";
 import type { CareEvent, Plant } from "@/lib/types";
-
-const repo = makeLocalRepo();
 
 function newId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `id-${Date.now()}-${Math.round(Math.random() * 1e6)}`;
@@ -22,7 +21,16 @@ function newId(): string {
 type NewPlant = Omit<CreatePlantInput, "id" | "createdAt">;
 type CareOpts = Omit<ApplyCareInput, "eventId">;
 
+type AuthStatus = "loading" | "authed" | "guest";
+interface Auth {
+  status: AuthStatus;
+  email: string | null;
+}
+
 interface AppState {
+  auth: Auth;
+  refreshAuth: () => Promise<void>;
+  signOut: () => Promise<void>;
   ready: boolean;
   plants: Plant[];
   events: CareEvent[];
@@ -41,28 +49,64 @@ export function useApp(): AppState {
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const repo = useMemo(() => makeApiRepo(), []);
+  const [auth, setAuth] = useState<Auth>({ status: "loading", email: null });
   const [ready, setReady] = useState(false);
   const [plants, setPlants] = useState<Plant[]>([]);
   const [events, setEvents] = useState<CareEvent[]>([]);
+
+  const toGuest = useCallback(() => {
+    setAuth({ status: "guest", email: null });
+    setReady(false);
+    setPlants([]);
+    setEvents([]);
+  }, []);
 
   const refresh = useCallback(async () => {
     const [p, e] = await Promise.all([repo.listPlants(), repo.listEvents()]);
     setPlants(p);
     setEvents(e);
+  }, [repo]);
+
+  // Re-read the current session from the server. Called on mount, and by the
+  // login screen after a successful sign-in / sign-up.
+  const refreshAuth = useCallback(async () => {
+    try {
+      const res = await fetch("/api/auth/me");
+      if (res.ok) {
+        const { email } = await res.json();
+        setAuth({ status: "authed", email });
+      } else {
+        setAuth({ status: "guest", email: null });
+      }
+    } catch {
+      setAuth({ status: "guest", email: null });
+    }
   }, []);
 
   useEffect(() => {
+    void refreshAuth();
+  }, [refreshAuth]);
+
+  // Once signed in: bootstrap the account (first-login migration / seed), then load.
+  useEffect(() => {
+    if (auth.status !== "authed") return;
+    let cancelled = false;
     (async () => {
-      const existing = await repo.listPlants();
-      if (existing.length === 0) {
-        for (const p of demoSeed(new Date().toISOString())) {
-          await repo.savePlant(p);
-        }
+      setReady(false);
+      try {
+        await bootstrapAccount(repo);
+        if (cancelled) return;
+        await refresh();
+        if (!cancelled) setReady(true);
+      } catch (err) {
+        if (err instanceof Unauthorized && !cancelled) toGuest();
       }
-      await refresh();
-      setReady(true);
     })();
-  }, [refresh]);
+    return () => {
+      cancelled = true;
+    };
+  }, [auth.status, repo, refresh, toGuest]);
 
   const addPlant = useCallback(
     async (input: NewPlant) => {
@@ -75,7 +119,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await refresh();
       return plant;
     },
-    [refresh],
+    [repo, refresh],
   );
 
   const updatePlant = useCallback(
@@ -83,12 +127,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await repo.savePlant(plant);
       await refresh();
     },
-    [refresh],
+    [repo, refresh],
   );
 
   const recordCare = useCallback(
     async (plantId: string, opts: CareOpts) => {
-      const plant = await repo.getPlant(plantId);
+      const plant = plants.find((p) => p.id === plantId) ?? (await repo.getPlant(plantId));
       if (!plant) return null;
       const { plant: updated, event } = applyCare(plant, {
         ...opts,
@@ -99,7 +143,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await refresh();
       return event;
     },
-    [refresh],
+    [repo, refresh, plants],
   );
 
   const removePlant = useCallback(
@@ -107,12 +151,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await repo.deletePlant(id);
       await refresh();
     },
-    [refresh],
+    [repo, refresh],
   );
+
+  const signOut = useCallback(async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // best-effort; clear local state regardless
+    }
+    toGuest();
+  }, [toGuest]);
 
   return (
     <AppContext.Provider
-      value={{ ready, plants, events, addPlant, updatePlant, recordCare, removePlant }}
+      value={{
+        auth,
+        refreshAuth,
+        signOut,
+        ready,
+        plants,
+        events,
+        addPlant,
+        updatePlant,
+        recordCare,
+        removePlant,
+      }}
     >
       {children}
     </AppContext.Provider>
