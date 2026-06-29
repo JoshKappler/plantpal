@@ -62,13 +62,21 @@ export default function PlantDetailPage() {
         >
           <ChevronLeft className="h-5 w-5" />
         </Link>
-        <button
-          type="button"
-          onClick={remove}
-          className="text-sm font-semibold text-bloom/80"
-        >
-          Remove
-        </button>
+        <div className="flex items-center gap-4">
+          <Link
+            href={`/plant/${plant.id}/edit`}
+            className="text-sm font-semibold text-leaf"
+          >
+            Edit
+          </Link>
+          <button
+            type="button"
+            onClick={remove}
+            className="text-sm font-semibold text-bloom/80"
+          >
+            Remove
+          </button>
+        </div>
       </header>
 
       <div className="overflow-hidden rounded-3xl bg-card ring-1 ring-moss/5">
